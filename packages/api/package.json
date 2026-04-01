@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "scripts": {
+    "dev": "concurrently -r npm:watch npm:start",
     "build": "tsc",
     "watch": "tsc -w",
     "clean": "rimraf dist",
@@ -15,8 +16,9 @@
   },
   "devDependencies": {
     "@types/node": "^20.x",
-    "typescript": "^5.0.0",
-    "rimraf": "^5.0.0"
+    "concurrently": "^9.2.1",
+    "rimraf": "^5.0.0",
+    "typescript": "^5.0.0"
   },
   "main": "dist/src/{index.js,functions/*.js}"
 }
