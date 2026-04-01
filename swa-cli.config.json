@@ -3,6 +3,7 @@
   "configurations": {
     "astro-on-swa-scaffolding": {
       "appLocation": "packages/ui",
+      "apiLocation": "packages/api",
       "outputLocation": "dist",
       "appBuildCommand": "npm run build",
       "run": "npm run dev",

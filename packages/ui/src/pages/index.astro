@@ -13,5 +13,13 @@
 	</head>
 	<body>
 		<h1>Astro</h1>
+		<p id="greeting"></p>
 	</body>
 </html>
+
+<script>
+	const p = document.querySelector("#greeting")!;
+	const res = await fetch("/api/httpTrigger1");
+	const text = await res.text();
+	p.textContent = text;
+</script>
