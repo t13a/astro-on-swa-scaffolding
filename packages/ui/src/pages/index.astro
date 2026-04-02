@@ -18,8 +18,10 @@
 </html>
 
 <script>
+    import { apiClient } from "../lib/api-client.js";
+
 	const p = document.querySelector("#greeting")!;
-	const res = await fetch("/api/httpTrigger1");
+	const res = await apiClient.httpTrigger1.$get();
 	const text = await res.text();
 	p.textContent = text;
 </script>

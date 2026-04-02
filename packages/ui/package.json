@@ -12,6 +12,10 @@
     "astro": "astro"
   },
   "dependencies": {
-    "astro": "^6.1.2"
+    "astro": "^6.1.2",
+    "hono": "^4.12.10"
+  },
+  "devDependencies": {
+    "api": "^1.0.0"
   }
 }

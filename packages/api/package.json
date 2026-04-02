@@ -12,7 +12,9 @@
     "test": "echo \"No tests yet...\""
   },
   "dependencies": {
-    "@azure/functions": "^4.0.0"
+    "@azure/functions": "^4.0.0",
+    "@hono/zod-validator": "^0.7.6",
+    "hono": "^4.12.10"
   },
   "devDependencies": {
     "@types/node": "^20.x",
