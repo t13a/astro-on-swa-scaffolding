@@ -97,3 +97,9 @@ local.settings.json
 __blobstorage__
 __queuestorage__
 __azurite_db*__.json
+
+# PGlite local data
+.pglite-data/
+
+# Drizzle migrations
+drizzle/

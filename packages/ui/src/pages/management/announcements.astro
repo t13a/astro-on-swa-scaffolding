@@ -1,0 +1,204 @@
+---
+
+---
+
+<html lang="ja">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<link rel="icon" href="/favicon.ico" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="generator" content={Astro.generator} />
+		<title>Announcements - Management</title>
+		<style>
+			body { font-family: system-ui, sans-serif; margin: 2rem; }
+			nav { margin-bottom: 1.5rem; }
+			nav a { margin-right: 1rem; }
+			table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+			th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; vertical-align: top; }
+			th { background: #f5f5f5; }
+			form { display: flex; gap: 0.5rem; align-items: flex-end; flex-wrap: wrap; margin-bottom: 1rem; }
+			form label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.875rem; }
+			form input[type="text"], form textarea { padding: 0.25rem 0.5rem; border: 1px solid #ccc; }
+			form textarea { resize: vertical; min-height: 2rem; }
+			button { padding: 0.25rem 0.75rem; cursor: pointer; }
+			.actions { display: flex; gap: 0.25rem; }
+			.edit-input { width: 100%; padding: 0.25rem; border: 1px solid #999; box-sizing: border-box; }
+			.empty { color: #888; font-style: italic; }
+		</style>
+	</head>
+	<body>
+		<h1>Announcements</h1>
+		<nav>
+			<a href="/management">Back to Management</a>
+		</nav>
+
+		<h2>New Announcement</h2>
+		<form id="create-form">
+			<label>Title <input type="text" name="title" required /></label>
+			<label>Body <textarea name="body" required></textarea></label>
+			<label>Published <input type="checkbox" name="published" /></label>
+			<button type="submit">Create</button>
+		</form>
+
+		<h2>List</h2>
+		<table>
+			<thead>
+				<tr>
+					<th>ID</th>
+					<th>Title</th>
+					<th>Body</th>
+					<th>Published</th>
+					<th>Created By</th>
+					<th>Created At</th>
+					<th>Actions</th>
+				</tr>
+			</thead>
+			<tbody id="table-body">
+				<tr><td colspan="7" class="empty">Loading...</td></tr>
+			</tbody>
+		</table>
+	</body>
+</html>
+
+<script>
+	import { apiClient } from "../../lib/api-client.js";
+
+	const tbody = document.querySelector("#table-body") as HTMLTableSectionElement;
+	const form = document.querySelector("#create-form") as HTMLFormElement;
+
+	interface Announcement {
+		id: number;
+		title: string;
+		body: string;
+		published: boolean;
+		createdBy: string;
+		createdAt: string;
+	}
+
+	function formatDate(iso: string): string {
+		return new Date(iso).toLocaleString();
+	}
+
+	function renderRows(rows: Announcement[]) {
+		if (rows.length === 0) {
+			tbody.innerHTML = '<tr><td colspan="7" class="empty">No announcements yet.</td></tr>';
+			return;
+		}
+		tbody.innerHTML = "";
+		for (const row of rows) {
+			const tr = document.createElement("tr");
+			tr.dataset.id = String(row.id);
+			tr.innerHTML = `
+				<td>${row.id}</td>
+				<td>${escapeHtml(row.title)}</td>
+				<td>${escapeHtml(row.body)}</td>
+				<td>${row.published ? "Yes" : "No"}</td>
+				<td>${escapeHtml(row.createdBy)}</td>
+				<td>${formatDate(row.createdAt)}</td>
+				<td class="actions">
+					<button data-action="edit" data-id="${row.id}">Edit</button>
+					<button data-action="delete" data-id="${row.id}">Delete</button>
+				</td>
+			`;
+			tbody.appendChild(tr);
+		}
+	}
+
+	function escapeHtml(str: string): string {
+		const d = document.createElement("div");
+		d.textContent = str;
+		return d.innerHTML;
+	}
+
+	async function loadAnnouncements() {
+		const res = await apiClient.management.announcements.$get();
+		if (res.ok) {
+			const rows = (await res.json()) as Announcement[];
+			renderRows(rows);
+		}
+	}
+
+	function startEdit(id: number) {
+		const tr = tbody.querySelector(`tr[data-id="${id}"]`);
+		if (!tr) return;
+		const cells = tr.querySelectorAll("td");
+		const title = cells[1].textContent || "";
+		const body = cells[2].textContent || "";
+		const published = cells[3].textContent === "Yes";
+
+		cells[1].innerHTML = `<input class="edit-input" name="title" value="${escapeHtml(title)}" />`;
+		cells[2].innerHTML = `<textarea class="edit-input" name="body">${escapeHtml(body)}</textarea>`;
+		cells[3].innerHTML = `<input type="checkbox" name="published" ${published ? "checked" : ""} />`;
+		cells[6].innerHTML = `
+			<div class="actions">
+				<button data-action="save" data-id="${id}">Save</button>
+				<button data-action="cancel">Cancel</button>
+			</div>
+		`;
+	}
+
+	async function saveEdit(id: number) {
+		const tr = tbody.querySelector(`tr[data-id="${id}"]`);
+		if (!tr) return;
+		const title = (tr.querySelector('input[name="title"]') as HTMLInputElement).value;
+		const body = (tr.querySelector('textarea[name="body"]') as HTMLTextAreaElement).value;
+		const published = (tr.querySelector('input[name="published"]') as HTMLInputElement).checked;
+
+		const res = await apiClient.management.announcements[":id"].$put({
+			param: { id: String(id) },
+			json: { title, body, published },
+		});
+		if (res.ok) {
+			await loadAnnouncements();
+		} else {
+			alert("Failed to update: " + (await res.text()));
+		}
+	}
+
+	async function deleteAnnouncement(id: number) {
+		if (!confirm("Delete this announcement?")) return;
+		const res = await apiClient.management.announcements[":id"].$delete({
+			param: { id: String(id) },
+		});
+		if (res.ok) {
+			await loadAnnouncements();
+		} else {
+			alert("Failed to delete: " + (await res.text()));
+		}
+	}
+
+	// Create form
+	form.addEventListener("submit", async (e) => {
+		e.preventDefault();
+		const fd = new FormData(form);
+		const res = await apiClient.management.announcements.$post({
+			json: {
+				title: fd.get("title") as string,
+				body: fd.get("body") as string,
+				published: (form.querySelector('input[name="published"]') as HTMLInputElement).checked,
+			},
+		});
+		if (res.ok) {
+			form.reset();
+			await loadAnnouncements();
+		} else {
+			alert("Failed to create: " + (await res.text()));
+		}
+	});
+
+	// Table actions (event delegation)
+	tbody.addEventListener("click", (e) => {
+		const btn = (e.target as HTMLElement).closest("button");
+		if (!btn) return;
+		const action = btn.dataset.action;
+		const id = Number(btn.dataset.id);
+		if (action === "edit") startEdit(id);
+		else if (action === "save") saveEdit(id);
+		else if (action === "delete") deleteAnnouncement(id);
+		else if (action === "cancel") loadAnnouncements();
+	});
+
+	// Initial load
+	loadAnnouncements();
+</script>
