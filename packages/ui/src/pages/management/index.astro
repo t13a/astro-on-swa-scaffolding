@@ -1,0 +1,30 @@
+---
+
+---
+
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<link rel="icon" href="/favicon.ico" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="generator" content={Astro.generator} />
+		<title>Management</title>
+	</head>
+	<body>
+		<h1>Management</h1>
+		<ul>
+			<li><a href="/logout?post_logout_redirect_uri=/">Logout</a></li>
+		</ul>
+		<pre id="me"></pre>
+	</body>
+</html>
+
+<script>
+    import { apiClient } from "../../lib/api-client.js";
+
+	const pre = document.querySelector("#me")!;
+	const res = await apiClient.management["me"].$get();
+	const text = res.status === 200 ? JSON.stringify(await res.json(), null, 2) : await res.text();
+	pre.textContent = text;
+</script>
