@@ -17,6 +17,8 @@
 			<li><a href="/login?post_login_redirect_uri=/management">Login</a></li>
 		</ul>
 		<p id="greeting"></p>
+		<h2>お知らせ</h2>
+		<div id="announcements">Loading...</div>
 	</body>
 </html>
 
@@ -27,4 +29,22 @@
 	const res = await apiClient.httpTrigger1.$get();
 	const text = await res.text();
 	p.textContent = text;
+
+	const container = document.querySelector("#announcements")!;
+	const annRes = await apiClient.announcements.$get();
+	if (annRes.ok) {
+		const items = await annRes.json();
+		if (items.length === 0) {
+			container.textContent = "お知らせはありません。";
+		} else {
+			container.innerHTML = items.map((item) => {
+				const date = new Date(item.createdAt).toLocaleDateString("ja-JP");
+				const title = item.title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+				const body = item.body.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+				return `<article><h3>${date} — ${title}</h3><p>${body}</p></article>`;
+			}).join("");
+		}
+	} else {
+		container.textContent = "お知らせの取得に失敗しました。";
+	}
 </script>
