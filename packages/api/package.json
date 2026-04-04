@@ -32,5 +32,10 @@
     "tsx": "^4.21.0",
     "typescript": "^5.0.0"
   },
-  "main": "dist/src/{index.js,functions/*.js}"
+  "main": "dist/src/{index.js,functions/*.js}",
+  "exports": {
+    "./src/*": {
+      "types": "./src/*"
+    }
+  }
 }
