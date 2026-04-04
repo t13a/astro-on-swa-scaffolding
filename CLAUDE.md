@@ -41,6 +41,15 @@ npm run db:seed -w api      # Seed sample data
 - Astro pages in `src/pages/`. No SSR adapter — static output only.
 - **RPC client** (`src/lib/api-client.ts`): Uses `hono/client` with the API's exported `AppType` for type-safe fetch calls.
 
+### Commit messages
+
+Commit messages serve as project documentation. Omit source code changes visible in the diff; focus on information that the diff alone does not convey.
+
+- **Design decisions and rationale** — why a particular approach was chosen, and rejected alternatives if any.
+- **Manual steps** — `npm install`, environment variable setup, DB migrations, and other operations not reproducible from code changes alone.
+- **External references** — links to relevant docs or issues.
+- **Body format** — use Markdown (headings, lists, code blocks) to structure the body.
+
 ### Key conventions
 
 - API tsconfig targets CommonJS (required by Azure Functions Node.js worker).
