@@ -1,5 +1,4 @@
 import { createMiddleware } from "hono/factory";
-import type { AzureEnv } from "../../lib/hono-azurefunc-adapter.js";
 
 export interface ClientPrincipal {
   userId: string;
@@ -8,13 +7,13 @@ export interface ClientPrincipal {
   userDetails: string;
 }
 
-export type AuthEnv = AzureEnv & {
+export type AuthEnv = {
   Variables: {
     clientPrincipal: ClientPrincipal;
   };
 };
 
-export const auth = createMiddleware<AuthEnv>(async (c, next) => {
+export const authMiddleware = createMiddleware<AuthEnv>(async (c, next) => {
   const header = c.req.header("x-ms-client-principal");
   if (!header) {
     return c.text("Unauthorized", 401);

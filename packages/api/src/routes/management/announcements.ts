@@ -3,8 +3,9 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { eq, desc } from "drizzle-orm";
 import { announcements } from "../../db/schema.js";
-import type { AuthEnv } from "./middleware.js";
+import type { AuthEnv } from "../../auth/middleware.js";
 import type { DbEnv } from "../../db/middleware.js";
+import { AzureEnv } from "../../lib/hono-azurefunc-adapter.js";
 
 const createSchema = z.object({
   title: z.string().min(1).max(200),
@@ -18,7 +19,7 @@ const updateSchema = z.object({
   published: z.coerce.boolean().optional(),
 });
 
-type Env = AuthEnv & DbEnv;
+type Env = AzureEnv & AuthEnv & DbEnv;
 
 const app = new Hono<Env>()
   .get("/", async (c) => {
