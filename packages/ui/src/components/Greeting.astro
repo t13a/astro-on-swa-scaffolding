@@ -1,0 +1,25 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+interface Props extends HTMLAttributes<"p"> {}
+
+const { ...rest } = Astro.props;
+---
+
+<greeting-component>
+  <p {...rest}>Loading...</p>
+</greeting-component>
+
+<script>
+  import { apiClient } from "../lib/api-client.js";
+
+  export class GreetingComponent extends HTMLElement {
+    async connectedCallback() {
+      const p = this.querySelector("p")!;
+      const res = await apiClient.httpTrigger1.$get();
+      p.textContent = await res.text();
+    }
+  }
+
+  customElements.define("greeting-component", GreetingComponent);
+</script>

@@ -1,0 +1,45 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+interface Props extends HTMLAttributes<"div"> {}
+
+const { ...rest } = Astro.props;
+---
+
+<announcements-component>
+  <div {...rest}>Loading...</div>
+  <template>
+    <article><h3></h3><p></p></article>
+  </template>
+</announcements-component>
+
+<script>
+  import { apiClient } from "../lib/api-client.js";
+
+  export class AnnouncementsComponent extends HTMLElement {
+    async connectedCallback() {
+      const container = this.querySelector("div")!;
+      const res = await apiClient.announcements.$get();
+      if (!res.ok) {
+        container.textContent = "Failed to load announcements.";
+        return;
+      }
+      const items = await res.json();
+      if (items.length === 0) {
+        container.textContent = "No announcement.";
+        return;
+      }
+	  container.textContent = "";
+      const template = this.querySelector("template")!;
+      for (const item of items) {
+        const clone = template.content.cloneNode(true) as DocumentFragment;
+        const date = new Date(item.createdAt).toLocaleDateString("ja-JP");
+        clone.querySelector("h3")!.textContent = `${date} — ${item.title}`;
+        clone.querySelector("p")!.textContent = item.body;
+        container.appendChild(clone);
+      }
+    }
+  }
+
+  customElements.define("announcements-component", AnnouncementsComponent);
+</script>
