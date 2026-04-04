@@ -29,11 +29,11 @@ const { ...rest } = Astro.props;
         container.textContent = "No announcement.";
         return;
       }
-	  container.textContent = "";
+      container.textContent = "";
       const template = this.querySelector("template")!;
       for (const item of items) {
         const clone = template.content.cloneNode(true) as DocumentFragment;
-        const date = new Date(item.createdAt).toLocaleDateString("ja-JP");
+        const date = new Date(item.createdAt).toLocaleDateString();
         clone.querySelector("h3")!.textContent = `${date} — ${item.title}`;
         clone.querySelector("p")!.textContent = item.body;
         container.appendChild(clone);

@@ -16,7 +16,7 @@ const { ...rest } = Astro.props;
   export class GreetingComponent extends HTMLElement {
     async connectedCallback() {
       const p = this.querySelector("p")!;
-      const res = await apiClient.httpTrigger1.$get();
+      const res = await apiClient.greeting.$get();
       p.textContent = await res.text();
     }
   }

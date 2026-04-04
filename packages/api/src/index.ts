@@ -1,6 +1,6 @@
 import { app } from "@azure/functions";
 import { azureHonoHandler } from "./lib/hono-azurefunc-adapter.js";
-import honoApp from "./app.js";
+import honoApp from "./routes/index.js";
 
 app.setup({
     enableHttpStream: true,
