@@ -1,0 +1,19 @@
+---
+import type { HTMLAttributes } from "astro/types";
+import type { DataGridConfig } from "../lib/data-grid.js";
+import DataGridDialog from "./DataGridDialog.astro";
+
+interface Props extends HTMLAttributes<"div"> {
+  config: DataGridConfig;
+}
+
+const { config, ...rest } = Astro.props;
+---
+
+<div {...rest}>
+  <div class="data-grid-header">
+    <button class="add" type="button">New {config.labels.singular}</button>
+  </div>
+  <div class="data-grid-body"></div>
+  <DataGridDialog fields={config.fields} />
+</div>

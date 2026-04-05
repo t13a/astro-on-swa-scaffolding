@@ -51,11 +51,11 @@ export interface DataGridConfig<
   };
   fields: F;
   idField: F[number]["key"];
-  onRead: () => Promise<InferRecord<F>[] | false>;
-  onCreate: (record: InferEditableRecord<F>) => Promise<InferRecord<F> | false>;
-  onUpdate: (
+  onRead(): Promise<InferRecord<F>[] | false>;
+  onCreate(record: InferEditableRecord<F>): Promise<InferRecord<F> | false>;
+  onUpdate(
     id: number,
     record: InferEditableRecord<F>,
-  ) => Promise<InferRecord<F> | false>;
-  onDelete: (id: number) => Promise<boolean>;
+  ): Promise<InferRecord<F> | false>;
+  onDelete(id: number): Promise<boolean>;
 }

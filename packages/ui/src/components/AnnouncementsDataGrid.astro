@@ -1,6 +1,6 @@
 ---
 import type { HTMLAttributes } from "astro/types";
-import DataGridDialog from "./DataGridDialog.astro";
+import DataGrid from "./DataGrid.astro";
 import { config } from "./AnnouncementsDataGrid.js";
 
 interface Props extends HTMLAttributes<"div"> {}
@@ -9,131 +9,15 @@ const { ...rest } = Astro.props;
 ---
 
 <announcements-data-grid-component>
-  <div {...rest}>
-    <div class="data-grid-header">
-      <button class="add" type="button">New Announcement</button>
-    </div>
-    <div class="data-grid-body"></div>
-    <DataGridDialog fields={config.fields} />
-  </div>
+  <DataGrid config={config} {...rest} />
 </announcements-data-grid-component>
 
 <script>
-  import { TabulatorFull as Tabulator } from "tabulator-tables";
-  import "tabulator-tables/dist/css/tabulator.min.css";
-  import { toTabulatorColumns } from "../lib/data-grid.js";
-  import { config, type Announcement } from "./AnnouncementsDataGrid.js";
+  import { DataGridComponent } from "./DataGrid.js";
+  import { config } from "./AnnouncementsDataGrid.js";
 
-  export class AnnouncementsDataGridComponent extends HTMLElement {
-    private table!: Tabulator;
-    private dialog!: HTMLDialogElement;
-    private form!: HTMLFormElement;
-    private editingId: number | null = null;
-
-    connectedCallback() {
-      this.dialog = this.querySelector("dialog")!;
-      this.form = this.querySelector("dialog form")!;
-
-      const columns = toTabulatorColumns(config.fields);
-      columns.push({
-        title: "",
-        formatter() {
-          return '<button data-action="edit">Edit</button> <button data-action="delete">Delete</button>';
-        },
-        width: 150,
-        headerSort: false,
-        cellClick: (_e, cell) => {
-          const target = (_e as unknown as MouseEvent).target as HTMLElement;
-          const row = cell.getRow().getData() as Announcement;
-          if (target.dataset.action === "edit") this.openEdit(row);
-          else if (target.dataset.action === "delete") this.doDelete(row.id);
-        },
-      });
-
-      this.table = new Tabulator(".data-grid-body", {
-        layout: "fitColumns",
-        columns,
-      });
-
-      this.loadData();
-
-      this.querySelector("button.add")!.addEventListener("click", () =>
-        this.openAdd(),
-      );
-
-      this.form
-        .querySelector('menu button[type="button"]')!
-        .addEventListener("click", () => this.dialog.close());
-
-      this.form.addEventListener("submit", (e) => {
-        e.preventDefault();
-        this.saveForm();
-      });
-    }
-
-    private async loadData() {
-      const records = await config.onRead();
-      if (records) {
-        this.table.setData(records);
-      }
-    }
-
-    private openAdd() {
-      this.form.reset();
-      this.editingId = null;
-      this.dialog.querySelector("h3")!.textContent = `New ${config.labels.singular}`;
-      this.dialog.showModal();
-    }
-
-    private openEdit(row: Announcement) {
-      this.editingId = row[config.idField];
-      for (const field of config.fields) {
-        if (field.editable === false) continue;
-        const el = this.form.elements.namedItem(field.key);
-        if (!el) continue;
-        if (field.type === "checkbox") {
-          (el as HTMLInputElement).checked = row[field.key] as boolean;
-        } else {
-          (el as HTMLInputElement).value = String(row[field.key]);
-        }
-      }
-      this.dialog.querySelector("h3")!.textContent = `Edit ${config.labels.singular}`;
-      this.dialog.showModal();
-    }
-
-    private async saveForm() {
-      const payload: Record<string, unknown> = {};
-      for (const field of config.fields) {
-        if (field.editable === false) continue;
-        const el = this.form.elements.namedItem(field.key)!;
-        payload[field.key] =
-          field.type === "checkbox"
-            ? (el as HTMLInputElement).checked
-            : (el as HTMLInputElement).value;
-      }
-      const result = this.editingId != null
-        ? await config.onUpdate(
-            this.editingId,
-            payload as EditableAnnouncement,
-          )
-        : await config.onCreate(payload as EditableAnnouncement);
-      if (!result) {
-        alert("Failed to save data.");
-        return;
-      }
-      this.dialog.close();
-      await this.loadData();
-    }
-
-    private async doDelete(id: number) {
-      if (!confirm(`Delete this record?`)) return;
-      const result = await config.onDelete(id);
-      if (!result) {
-        alert("Failed to delete");
-        return;
-      }
-      await this.loadData();
-    }
+  class AnnouncementsDataGridComponent extends DataGridComponent {
+    readonly config = config;
   }
 
   customElements.define(
