@@ -1,0 +1,26 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+interface Props extends HTMLAttributes<"pre"> {}
+
+const { ...rest } = Astro.props;
+---
+
+<me-component>
+  <pre {...rest}>Loading...</pre>
+</me-component>
+
+<script>
+  import { apiClient } from "../lib/api-client.js";
+
+  export class MeComponent extends HTMLElement {
+    async connectedCallback() {
+      const pre = this.querySelector("pre")!;
+      const res = await apiClient.management["me"].$get();
+      const text = res.status === 200 ? JSON.stringify(await res.json(), null, 2) : await res.text();
+      pre.textContent = text;
+    }
+  }
+
+  customElements.define("me-component", MeComponent);
+</script>

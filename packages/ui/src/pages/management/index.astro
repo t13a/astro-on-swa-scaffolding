@@ -1,5 +1,5 @@
 ---
-
+import Me from "../../components/Me.astro";
 ---
 
 <html lang="en">
@@ -17,15 +17,6 @@
 			<li><a href="/management/announcements">Announcements</a></li>
 			<li><a href="/logout?post_logout_redirect_uri=/">Logout</a></li>
 		</ul>
-		<pre id="me"></pre>
+		<Me />
 	</body>
 </html>
-
-<script>
-    import { apiClient } from "../../lib/api-client.js";
-
-	const pre = document.querySelector("#me")!;
-	const res = await apiClient.management["me"].$get();
-	const text = res.status === 200 ? JSON.stringify(await res.json(), null, 2) : await res.text();
-	pre.textContent = text;
-</script>
