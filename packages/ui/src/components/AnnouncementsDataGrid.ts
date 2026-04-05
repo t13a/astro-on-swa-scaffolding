@@ -1,10 +1,10 @@
 import { apiClient } from "../lib/api-client.js";
 import type {
-  DataGridConfig,
   DataGridField,
-  InferEditableRecord,
   InferRecord,
-} from "../lib/data-grid.js";
+  InferEditableRecord,
+  DataGridConfig,
+} from "./DataGrid.js";
 
 const fields = [
   { key: "id", label: "ID", type: "number", editable: false, width: 60 },

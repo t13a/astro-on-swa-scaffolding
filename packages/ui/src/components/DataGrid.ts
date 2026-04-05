@@ -1,18 +1,92 @@
-import { TabulatorFull as Tabulator } from "tabulator-tables";
+import {
+  TabulatorFull as Tabulator,
+  type ColumnDefinition,
+} from "tabulator-tables";
 import "tabulator-tables/dist/css/tabulator.min.css";
-import { toTabulatorColumns, type DataGridConfig } from "../lib/data-grid.js";
+
+export interface DataGridField<K extends string> {
+  readonly key: K;
+  readonly label: string;
+  readonly type: "text" | "textarea" | "checkbox" | "number" | "datetime";
+  readonly required?: boolean;
+  readonly editable?: boolean;
+  readonly width?: number;
+}
+
+function toTabulatorColumns<K extends string>(
+  fields: DataGridField<K>[],
+): ColumnDefinition[] {
+  return fields.map((f) => {
+    const col: ColumnDefinition = { title: f.label, field: f.key };
+    if (f.width) col.width = f.width;
+    if (f.type === "checkbox") col.formatter = "tickCross";
+    if (f.type === "datetime") {
+      col.formatter = (cell) =>
+        new Date(cell.getValue() as string).toLocaleString();
+    }
+    return col;
+  });
+}
+
+type FieldValueType = {
+  text: string;
+  textarea: string;
+  checkbox: boolean;
+  number: number;
+  datetime: string;
+};
+
+export type InferRecord<F extends DataGridField<string>[]> = {
+  [P in F[number] as P["key"]]: FieldValueType[P["type"]];
+};
+
+export type InferEditableRecord<F extends DataGridField<string>[]> = {
+  [P in F[number] as P extends { editable: false }
+    ? never
+    : P["key"]]: FieldValueType[P["type"]];
+};
+
+export interface DataGridConfig<
+  F extends DataGridField<string>[] = DataGridField<string>[],
+> {
+  labels: {
+    singular: string;
+    prural: string;
+  };
+  fields: F;
+  idField: F[number]["key"];
+  onRead(): Promise<InferRecord<F>[] | false>;
+  onCreate(record: InferEditableRecord<F>): Promise<InferRecord<F> | false>;
+  onUpdate(
+    id: number,
+    record: InferEditableRecord<F>,
+  ): Promise<InferRecord<F> | false>;
+  onDelete(id: number): Promise<boolean>;
+}
 
 export abstract class DataGridComponent extends HTMLElement {
   abstract readonly config: DataGridConfig;
 
   private table!: Tabulator;
+  private addButton!: HTMLButtonElement;
   private dialog!: HTMLDialogElement;
+  private dialogHeading!: HTMLHeadingElement;
   private form!: HTMLFormElement;
+  private formCancelButton!: HTMLButtonElement;
+  private formSaveButton!: HTMLButtonElement;
   private editingId: number | null = null;
 
   connectedCallback() {
+    this.addButton = this.querySelector("button.data-grid-add")!;
     this.dialog = this.querySelector("dialog")!;
+    this.dialogHeading = this.dialog.querySelector("dialog h3")!;
     this.form = this.querySelector("dialog form")!;
+    this.formCancelButton = this.form.querySelector(
+      'menu button[type="button"]',
+    )!;
+    this.formSaveButton = this.form.querySelector(
+      'menu button[type="submit"]',
+    )!;
 
     const columns = toTabulatorColumns(this.config.fields);
     columns.push({
@@ -36,20 +110,18 @@ export abstract class DataGridComponent extends HTMLElement {
       { layout: "fitColumns", columns },
     );
 
-    this.loadData();
+    this.addButton.addEventListener("click", () => this.openAdd());
 
-    this.querySelector("button.add")!.addEventListener("click", () =>
-      this.openAdd(),
+    this.formCancelButton.addEventListener("click", () =>
+      this.dialog.close(),
     );
-
-    this.form
-      .querySelector('menu button[type="button"]')!
-      .addEventListener("click", () => this.dialog.close());
 
     this.form.addEventListener("submit", (e) => {
       e.preventDefault();
       this.saveForm();
     });
+
+    this.loadData();
   }
 
   private async loadData() {
@@ -62,8 +134,7 @@ export abstract class DataGridComponent extends HTMLElement {
   private openAdd() {
     this.form.reset();
     this.editingId = null;
-    this.dialog.querySelector("h3")!.textContent =
-      `New ${this.config.labels.singular}`;
+    this.dialogHeading.textContent = `New ${this.config.labels.singular}`;
     this.dialog.showModal();
   }
 
@@ -79,8 +150,7 @@ export abstract class DataGridComponent extends HTMLElement {
         (el as HTMLInputElement).value = String(row[field.key]);
       }
     }
-    this.dialog.querySelector("h3")!.textContent =
-      `Edit ${this.config.labels.singular}`;
+    this.dialogHeading.textContent = `Edit ${this.config.labels.singular}`;
     this.dialog.showModal();
   }
 

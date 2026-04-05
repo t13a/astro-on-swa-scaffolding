@@ -1,19 +1,59 @@
 ---
 import type { HTMLAttributes } from "astro/types";
-import type { DataGridConfig } from "../lib/data-grid.js";
-import DataGridDialog from "./DataGridDialog.astro";
+import type { DataGridConfig } from "./DataGrid";
 
 interface Props extends HTMLAttributes<"div"> {
   config: DataGridConfig;
 }
 
 const { config, ...rest } = Astro.props;
+
+const editableFields = config.fields.filter((f) => f.editable !== false);
 ---
 
 <div {...rest}>
   <div class="data-grid-header">
-    <button class="add" type="button">New {config.labels.singular}</button>
+    <button class="data-grid-add" type="button">New {config.labels.singular}</button>
   </div>
   <div class="data-grid-body"></div>
-  <DataGridDialog fields={config.fields} />
+  <dialog>
+    <form>
+      <h3></h3>
+      {
+        editableFields.map((f) =>
+          f.type === "checkbox" ? (
+            <div>
+              <label>
+                {f.label} <input type="checkbox" name={f.key} />
+              </label>
+            </div>
+          ) : f.type === "number" ? (
+            <div>
+              <label>
+                {f.label}{" "}
+                <input type="number" name={f.key} required={f.required} />
+              </label>
+            </div>
+          ) : f.type === "textarea" ? (
+            <div>
+              <label>
+                {f.label} <textarea name={f.key} required={f.required} />
+              </label>
+            </div>
+          ) : (
+            <div>
+              <label>
+                {f.label}{" "}
+                <input type="text" name={f.key} required={f.required} />
+              </label>
+            </div>
+          ),
+        )
+      }
+      <menu>
+        <button type="button">Cancel</button>
+        <button type="submit">Save</button>
+      </menu>
+    </form>
+  </dialog>
 </div>
