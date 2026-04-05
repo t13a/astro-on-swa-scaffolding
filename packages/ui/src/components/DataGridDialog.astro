@@ -1,0 +1,37 @@
+---
+import type { HTMLAttributes } from "astro/types";
+import type { DataGridField } from "../lib/data-grid.js";
+
+interface Props extends HTMLAttributes<"dialog"> {
+  fields: DataGridField[];
+}
+
+const { fields, ...rest } = Astro.props;
+---
+
+<dialog {...rest}>
+  <form>
+    <h3></h3>
+    {fields.map((f) =>
+      f.type === "hidden" ? (
+        <input type="hidden" name={f.key} />
+      ) : f.type === "checkbox" ? (
+        <div>
+          <label>{f.label} <input type="checkbox" name={f.key} /></label>
+        </div>
+      ) : f.type === "textarea" ? (
+        <div>
+          <label>{f.label} <textarea name={f.key} required={f.required}></textarea></label>
+        </div>
+      ) : (
+        <div>
+          <label>{f.label} <input type="text" name={f.key} required={f.required} /></label>
+        </div>
+      )
+    )}
+    <menu>
+      <button type="submit">Save</button>
+      <button type="button">Cancel</button>
+    </menu>
+  </form>
+</dialog>

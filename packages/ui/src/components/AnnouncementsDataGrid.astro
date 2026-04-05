@@ -1,9 +1,18 @@
 ---
 import type { HTMLAttributes } from "astro/types";
+import type { DataGridField } from "../lib/data-grid.js";
+import DataGridDialog from "./DataGridDialog.astro";
 
 interface Props extends HTMLAttributes<"div"> {}
 
 const { ...rest } = Astro.props;
+
+const fields: DataGridField[] = [
+  { key: "id", label: "ID", type: "hidden" },
+  { key: "title", label: "Title", type: "text", required: true },
+  { key: "body", label: "Body", type: "textarea", required: true },
+  { key: "published", label: "Published", type: "checkbox" },
+];
 ---
 
 <announcements-data-grid-component>
@@ -12,25 +21,7 @@ const { ...rest } = Astro.props;
       <button class="add" type="button">New Announcement</button>
     </div>
     <div class="data-grid-body"></div>
-    <dialog>
-      <form>
-        <h3></h3>
-        <input type="hidden" name="id" />
-        <div>
-          <label>Title <input type="text" name="title" size="20" required /></label>
-        </div>
-        <div>
-          <label>Body <textarea name="body" cols="40" rows="5" required></textarea></label>
-        </div>
-        <div>
-          <label>Published <input type="checkbox" name="published" /></label>
-        </div>
-        <menu>
-          <button type="submit">Save</button>
-          <button type="button">Cancel</button>
-        </menu>
-      </form>
-    </dialog>
+    <DataGridDialog fields={fields} />
   </div>
 </announcements-data-grid-component>
 
