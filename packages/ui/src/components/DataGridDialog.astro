@@ -7,12 +7,14 @@ interface Props extends HTMLAttributes<"dialog"> {
 }
 
 const { fields, ...rest } = Astro.props;
+
+const editableFields = fields.filter((f) => f.editable !== false);
 ---
 
 <dialog {...rest}>
   <form>
     <h3></h3>
-    {fields.map((f) =>
+    {editableFields.map((f) =>
       f.type === "hidden" ? (
         <input type="hidden" name={f.key} />
       ) : f.type === "checkbox" ? (

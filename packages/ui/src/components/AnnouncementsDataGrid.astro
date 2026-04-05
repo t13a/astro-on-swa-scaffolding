@@ -1,18 +1,11 @@
 ---
 import type { HTMLAttributes } from "astro/types";
-import type { DataGridField } from "../lib/data-grid.js";
 import DataGridDialog from "./DataGridDialog.astro";
+import { fields } from "./AnnouncementsDataGrid.js";
 
 interface Props extends HTMLAttributes<"div"> {}
 
 const { ...rest } = Astro.props;
-
-const fields: DataGridField[] = [
-  { key: "id", label: "ID", type: "hidden" },
-  { key: "title", label: "Title", type: "text", required: true },
-  { key: "body", label: "Body", type: "textarea", required: true },
-  { key: "published", label: "Published", type: "checkbox" },
-];
 ---
 
 <announcements-data-grid-component>
@@ -29,6 +22,8 @@ const fields: DataGridField[] = [
   import { TabulatorFull as Tabulator } from "tabulator-tables";
   import "tabulator-tables/dist/css/tabulator.min.css";
   import { apiClient } from "../lib/api-client.js";
+  import { toTabulatorColumns } from "../lib/data-grid.js";
+  import { fields } from "./AnnouncementsDataGrid.js";
 
   interface Announcement {
     id: number;
@@ -48,43 +43,25 @@ const fields: DataGridField[] = [
       this.dialog = this.querySelector("dialog")!;
       this.form = this.querySelector("dialog form")!;
 
+      const columns = toTabulatorColumns(fields);
+      columns.push({
+        title: "",
+        formatter() {
+          return '<button data-action="edit">Edit</button> <button data-action="delete">Delete</button>';
+        },
+        width: 150,
+        headerSort: false,
+        cellClick: (_e, cell) => {
+          const target = (_e as unknown as MouseEvent).target as HTMLElement;
+          const row = cell.getRow().getData() as Announcement;
+          if (target.dataset.action === "edit") this.openEdit(row);
+          else if (target.dataset.action === "delete") this.doDelete(row.id);
+        },
+      });
+
       this.table = new Tabulator(".data-grid-body", {
         layout: "fitColumns",
-        columns: [
-          { title: "ID", field: "id", width: 60, headerSort: true },
-          { title: "Title", field: "title" },
-          { title: "Body", field: "body" },
-          {
-            title: "Published",
-            field: "published",
-            formatter: "tickCross",
-            width: 100,
-          },
-          { title: "Created By", field: "createdBy" },
-          {
-            title: "Created At",
-            field: "createdAt",
-            formatter(cell) {
-              return new Date(cell.getValue() as string).toLocaleString();
-            },
-          },
-          {
-            title: "",
-            formatter() {
-              return '<button data-action="edit">Edit</button> <button data-action="delete">Delete</button>';
-            },
-            width: 150,
-            headerSort: false,
-            cellClick: (_e, cell) => {
-              const target = (_e as unknown as MouseEvent)
-                .target as HTMLElement;
-              const row = cell.getRow().getData() as Announcement;
-              if (target.dataset.action === "edit") this.openEdit(row);
-              else if (target.dataset.action === "delete")
-                this.doDelete(row.id);
-            },
-          },
-        ],
+        columns,
       });
 
       this.loadData();
