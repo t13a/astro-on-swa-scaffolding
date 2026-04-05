@@ -3,7 +3,7 @@ import type { HTMLAttributes } from "astro/types";
 import type { DataGridField } from "../lib/data-grid.js";
 
 interface Props extends HTMLAttributes<"dialog"> {
-  fields: DataGridField[];
+  fields: readonly DataGridField<any>[];
 }
 
 const { fields, ...rest } = Astro.props;

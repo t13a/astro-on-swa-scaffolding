@@ -1,7 +1,7 @@
 ---
 import type { HTMLAttributes } from "astro/types";
 import DataGridDialog from "./DataGridDialog.astro";
-import { fields } from "./AnnouncementsDataGrid.js";
+import { config } from "./AnnouncementsDataGrid.js";
 
 interface Props extends HTMLAttributes<"div"> {}
 
@@ -14,25 +14,15 @@ const { ...rest } = Astro.props;
       <button class="add" type="button">New Announcement</button>
     </div>
     <div class="data-grid-body"></div>
-    <DataGridDialog fields={fields} />
+    <DataGridDialog fields={config.fields} />
   </div>
 </announcements-data-grid-component>
 
 <script>
   import { TabulatorFull as Tabulator } from "tabulator-tables";
   import "tabulator-tables/dist/css/tabulator.min.css";
-  import { apiClient } from "../lib/api-client.js";
   import { toTabulatorColumns } from "../lib/data-grid.js";
-  import { fields } from "./AnnouncementsDataGrid.js";
-
-  interface Announcement {
-    id: number;
-    title: string;
-    body: string;
-    published: boolean;
-    createdBy: string;
-    createdAt: string;
-  }
+  import { config, type Announcement } from "./AnnouncementsDataGrid.js";
 
   export class AnnouncementsDataGridComponent extends HTMLElement {
     private table!: Tabulator;
@@ -43,7 +33,7 @@ const { ...rest } = Astro.props;
       this.dialog = this.querySelector("dialog")!;
       this.form = this.querySelector("dialog form")!;
 
-      const columns = toTabulatorColumns(fields);
+      const columns = toTabulatorColumns(config.fields);
       columns.push({
         title: "",
         formatter() {
@@ -81,10 +71,9 @@ const { ...rest } = Astro.props;
     }
 
     private async loadData() {
-      const res = await apiClient.management.announcements.$get();
-      if (res.ok) {
-        const rows = (await res.json()) as Announcement[];
-        this.table.setData(rows);
+      const records = await config.onRead();
+      if (records) {
+        this.table.setData(records);
       }
     }
 
@@ -92,7 +81,7 @@ const { ...rest } = Astro.props;
       this.form.reset();
       (this.form.querySelector('input[name="id"]') as HTMLInputElement).value =
         "";
-      this.dialog.querySelector("h3")!.textContent = "New Announcement";
+      this.dialog.querySelector("h3")!.textContent = `New ${config.labels.singular}`;
       this.dialog.showModal();
     }
 
@@ -108,7 +97,7 @@ const { ...rest } = Astro.props;
       (
         this.form.querySelector('input[name="published"]') as HTMLInputElement
       ).checked = row.published;
-      this.dialog.querySelector("h3")!.textContent = "Edit Announcement";
+      this.dialog.querySelector("h3")!.textContent = `Edit ${config.labels.singular}`;
       this.dialog.showModal();
     }
 
@@ -122,29 +111,25 @@ const { ...rest } = Astro.props;
           this.form.querySelector('input[name="published"]') as HTMLInputElement
         ).checked,
       };
-
-      const res = id
-        ? await apiClient.management.announcements[":id"].$put({
-            param: { id },
-            json: payload,
-          })
-        : await apiClient.management.announcements.$post({ json: payload });
-
-      if (res.ok) {
-        this.dialog.close();
-        await this.loadData();
-      } else {
-        alert("Error: " + (await res.text()));
+      const result = id
+        ? await config.onUpdate(Number(id), payload)
+        : await config.onCreate(payload);
+      if (!result) {
+        alert("Failed to save data.");
+        return;
       }
+      this.dialog.close();
+      await this.loadData();
     }
 
     private async doDelete(id: number) {
-      if (!confirm("Delete this announcement?")) return;
-      const res = await apiClient.management.announcements[":id"].$delete({
-        param: { id: String(id) },
-      });
-      if (res.ok) await this.loadData();
-      else alert("Failed to delete: " + (await res.text()));
+      if (!confirm(`Delete this record?`)) return;
+      const result = await config.onDelete(id);
+      if (!result) {
+        alert("Failed to delete");
+        return;
+      }
+      await this.loadData();
     }
   }
 
