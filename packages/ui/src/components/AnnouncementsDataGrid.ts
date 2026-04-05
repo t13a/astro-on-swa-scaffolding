@@ -7,7 +7,7 @@ import type {
 } from "../lib/data-grid.js";
 
 const fields = [
-  { key: "id", label: "ID", type: "hidden", width: 60 },
+  { key: "id", label: "ID", type: "number", editable: false, width: 60 },
   { key: "title", label: "Title", type: "text", required: true },
   { key: "body", label: "Body", type: "textarea", required: true },
   { key: "published", label: "Published", type: "checkbox", width: 100 },

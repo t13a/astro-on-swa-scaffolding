@@ -3,7 +3,7 @@ import type { ColumnDefinition } from "tabulator-tables";
 export interface DataGridField<K extends string> {
   readonly key: K;
   readonly label: string;
-  readonly type: "text" | "textarea" | "checkbox" | "hidden" | "datetime";
+  readonly type: "text" | "textarea" | "checkbox" | "number" | "datetime";
   readonly required?: boolean;
   readonly editable?: boolean;
   readonly width?: number;
@@ -28,7 +28,7 @@ type FieldValueType = {
   text: string;
   textarea: string;
   checkbox: boolean;
-  hidden: number;
+  number: number;
   datetime: string;
 };
 
@@ -39,9 +39,7 @@ export type InferRecord<F extends DataGridField<string>[]> = {
 export type InferEditableRecord<F extends DataGridField<string>[]> = {
   [P in F[number] as P extends { editable: false }
     ? never
-    : P extends { type: "hidden" }
-      ? never
-      : P["key"]]: FieldValueType[P["type"]];
+    : P["key"]]: FieldValueType[P["type"]];
 };
 
 export interface DataGridConfig<

@@ -28,6 +28,7 @@ const { ...rest } = Astro.props;
     private table!: Tabulator;
     private dialog!: HTMLDialogElement;
     private form!: HTMLFormElement;
+    private editingId: number | null = null;
 
     connectedCallback() {
       this.dialog = this.querySelector("dialog")!;
@@ -79,41 +80,43 @@ const { ...rest } = Astro.props;
 
     private openAdd() {
       this.form.reset();
-      (this.form.querySelector('input[name="id"]') as HTMLInputElement).value =
-        "";
+      this.editingId = null;
       this.dialog.querySelector("h3")!.textContent = `New ${config.labels.singular}`;
       this.dialog.showModal();
     }
 
     private openEdit(row: Announcement) {
-      (this.form.querySelector('input[name="id"]') as HTMLInputElement).value =
-        String(row.id);
-      (
-        this.form.querySelector('input[name="title"]') as HTMLInputElement
-      ).value = row.title;
-      (
-        this.form.querySelector('textarea[name="body"]') as HTMLTextAreaElement
-      ).value = row.body;
-      (
-        this.form.querySelector('input[name="published"]') as HTMLInputElement
-      ).checked = row.published;
+      this.editingId = row[config.idField];
+      for (const field of config.fields) {
+        if (field.editable === false) continue;
+        const el = this.form.elements.namedItem(field.key);
+        if (!el) continue;
+        if (field.type === "checkbox") {
+          (el as HTMLInputElement).checked = row[field.key] as boolean;
+        } else {
+          (el as HTMLInputElement).value = String(row[field.key]);
+        }
+      }
       this.dialog.querySelector("h3")!.textContent = `Edit ${config.labels.singular}`;
       this.dialog.showModal();
     }
 
     private async saveForm() {
-      const fd = new FormData(this.form);
-      const id = fd.get("id") as string;
-      const payload = {
-        title: fd.get("title") as string,
-        body: fd.get("body") as string,
-        published: (
-          this.form.querySelector('input[name="published"]') as HTMLInputElement
-        ).checked,
-      };
-      const result = id
-        ? await config.onUpdate(Number(id), payload)
-        : await config.onCreate(payload);
+      const payload: Record<string, unknown> = {};
+      for (const field of config.fields) {
+        if (field.editable === false) continue;
+        const el = this.form.elements.namedItem(field.key)!;
+        payload[field.key] =
+          field.type === "checkbox"
+            ? (el as HTMLInputElement).checked
+            : (el as HTMLInputElement).value;
+      }
+      const result = this.editingId != null
+        ? await config.onUpdate(
+            this.editingId,
+            payload as EditableAnnouncement,
+          )
+        : await config.onCreate(payload as EditableAnnouncement);
       if (!result) {
         alert("Failed to save data.");
         return;
