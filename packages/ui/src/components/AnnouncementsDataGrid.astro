@@ -1,0 +1,187 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+interface Props extends HTMLAttributes<"div"> {}
+
+const { ...rest } = Astro.props;
+---
+
+<announcements-data-grid-component>
+  <div {...rest}>
+    <div class="data-grid-header">
+      <button class="add" type="button">New Announcement</button>
+    </div>
+    <div class="data-grid-body"></div>
+    <dialog>
+      <form>
+        <h3></h3>
+        <input type="hidden" name="id" />
+        <div>
+          <label>Title <input type="text" name="title" size="20" required /></label>
+        </div>
+        <div>
+          <label>Body <textarea name="body" cols="40" rows="5" required></textarea></label>
+        </div>
+        <div>
+          <label>Published <input type="checkbox" name="published" /></label>
+        </div>
+        <menu>
+          <button type="submit">Save</button>
+          <button type="button">Cancel</button>
+        </menu>
+      </form>
+    </dialog>
+  </div>
+</announcements-data-grid-component>
+
+<script>
+  import { TabulatorFull as Tabulator } from "tabulator-tables";
+  import "tabulator-tables/dist/css/tabulator.min.css";
+  import { apiClient } from "../lib/api-client.js";
+
+  interface Announcement {
+    id: number;
+    title: string;
+    body: string;
+    published: boolean;
+    createdBy: string;
+    createdAt: string;
+  }
+
+  export class AnnouncementsDataGridComponent extends HTMLElement {
+    private table!: Tabulator;
+    private dialog!: HTMLDialogElement;
+    private form!: HTMLFormElement;
+
+    connectedCallback() {
+      this.dialog = this.querySelector("dialog")!;
+      this.form = this.querySelector("dialog form")!;
+
+      this.table = new Tabulator(".data-grid-body", {
+        layout: "fitColumns",
+        columns: [
+          { title: "ID", field: "id", width: 60, headerSort: true },
+          { title: "Title", field: "title" },
+          { title: "Body", field: "body" },
+          {
+            title: "Published",
+            field: "published",
+            formatter: "tickCross",
+            width: 100,
+          },
+          { title: "Created By", field: "createdBy" },
+          {
+            title: "Created At",
+            field: "createdAt",
+            formatter(cell) {
+              return new Date(cell.getValue() as string).toLocaleString();
+            },
+          },
+          {
+            title: "",
+            formatter() {
+              return '<button data-action="edit">Edit</button> <button data-action="delete">Delete</button>';
+            },
+            width: 150,
+            headerSort: false,
+            cellClick: (_e, cell) => {
+              const target = (_e as unknown as MouseEvent)
+                .target as HTMLElement;
+              const row = cell.getRow().getData() as Announcement;
+              if (target.dataset.action === "edit") this.openEdit(row);
+              else if (target.dataset.action === "delete")
+                this.doDelete(row.id);
+            },
+          },
+        ],
+      });
+
+      this.loadData();
+
+      this.querySelector("button.add")!.addEventListener("click", () =>
+        this.openAdd(),
+      );
+
+      this.form
+        .querySelector('menu button[type="button"]')!
+        .addEventListener("click", () => this.dialog.close());
+
+      this.form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        this.saveForm();
+      });
+    }
+
+    private async loadData() {
+      const res = await apiClient.management.announcements.$get();
+      if (res.ok) {
+        const rows = (await res.json()) as Announcement[];
+        this.table.setData(rows);
+      }
+    }
+
+    private openAdd() {
+      this.form.reset();
+      (this.form.querySelector('input[name="id"]') as HTMLInputElement).value =
+        "";
+      this.dialog.querySelector("h3")!.textContent = "New Announcement";
+      this.dialog.showModal();
+    }
+
+    private openEdit(row: Announcement) {
+      (this.form.querySelector('input[name="id"]') as HTMLInputElement).value =
+        String(row.id);
+      (
+        this.form.querySelector('input[name="title"]') as HTMLInputElement
+      ).value = row.title;
+      (
+        this.form.querySelector('textarea[name="body"]') as HTMLTextAreaElement
+      ).value = row.body;
+      (
+        this.form.querySelector('input[name="published"]') as HTMLInputElement
+      ).checked = row.published;
+      this.dialog.querySelector("h3")!.textContent = "Edit Announcement";
+      this.dialog.showModal();
+    }
+
+    private async saveForm() {
+      const fd = new FormData(this.form);
+      const id = fd.get("id") as string;
+      const payload = {
+        title: fd.get("title") as string,
+        body: fd.get("body") as string,
+        published: (
+          this.form.querySelector('input[name="published"]') as HTMLInputElement
+        ).checked,
+      };
+
+      const res = id
+        ? await apiClient.management.announcements[":id"].$put({
+            param: { id },
+            json: payload,
+          })
+        : await apiClient.management.announcements.$post({ json: payload });
+
+      if (res.ok) {
+        this.dialog.close();
+        await this.loadData();
+      } else {
+        alert("Error: " + (await res.text()));
+      }
+    }
+
+    private async doDelete(id: number) {
+      if (!confirm("Delete this announcement?")) return;
+      const res = await apiClient.management.announcements[":id"].$delete({
+        param: { id: String(id) },
+      });
+      if (res.ok) await this.loadData();
+      else alert("Failed to delete: " + (await res.text()));
+    }
+  }
+
+  customElements.define(
+    "announcements-data-grid-component",
+    AnnouncementsDataGridComponent,
+  );
+</script>

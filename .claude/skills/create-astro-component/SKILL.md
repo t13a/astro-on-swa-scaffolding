@@ -60,6 +60,14 @@ const { ...rest } = Astro.props;
 </script>
 ```
 
+## id 属性の扱い
+
+コンポーネント内で `id` 属性を決め打ちしない。コンポーネント外との重複を避けるため、以下の優先順で選択する。
+
+1. **要素名で選択** — `this.querySelector("p")`, `this.querySelector("dialog")` など。カスタム要素 (`this`) 内にスコープされるため、同じ要素名でもコンポーネント外とは衝突しない。
+2. **`class` 属性で選択** — 同じ要素が複数ある場合は class で区別する。Astro コンポーネントは `data-astro-*` 属性が自動付与されるため、スタイルの副作用は抑えられる。
+3. **Props から受け取る** — 外部から参照が必要な場合のみ `id` を Props 経由で受け取る。
+
 ## 命名規則
 
 - カスタム要素タグ: ケバブケース + `-component` サフィックス（例: `greeting-component`, `me-component`）
