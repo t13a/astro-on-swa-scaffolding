@@ -96,6 +96,10 @@ export abstract class DataGridComponent extends HTMLElement {
     this.loadData();
   }
 
+  disconnectedCallback() {
+    this.table.destroy();
+  }
+
   private bindElements() {
     this.addButton = this.querySelector("button.data-grid-add")!;
     this.dialog = this.querySelector("dialog")!;
