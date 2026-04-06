@@ -39,8 +39,7 @@ export const config = {
 async function onRead() {
   const res = await apiClient.management.announcements.$get();
   if (!res.ok) {
-    console.error(await res.text());
-    return false;
+    throw new Error(await res.text());
   }
   return await res.json();
 }
@@ -50,8 +49,7 @@ async function onCreate(record: EditableAnnouncement) {
     json: record,
   });
   if (!res.ok) {
-    console.error(await res.text());
-    return false;
+    throw new Error(await res.text());
   }
   return await res.json();
 }
@@ -62,8 +60,7 @@ async function onUpdate(id: number, record: EditableAnnouncement) {
     json: record,
   });
   if (!res.ok) {
-    console.error(await res.text());
-    return false;
+    throw new Error(await res.text());
   }
   return await res.json();
 }
@@ -73,8 +70,6 @@ async function onDelete(id: number) {
     param: { id: String(id) },
   });
   if (!res.ok) {
-    console.error(await res.text());
-    return false;
+    throw new Error(await res.text());
   }
-  return true;
 }

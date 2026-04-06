@@ -28,6 +28,19 @@ function toTabulatorColumns<K extends string>(
   });
 }
 
+function parseFieldValue(
+  field: DataGridField<string>,
+  el: Element,
+): string | boolean | number {
+  if (field.type === "checkbox") {
+    return (el as HTMLInputElement).checked;
+  }
+  if (field.type === "number") {
+    return Number((el as HTMLInputElement).value) || 0;
+  }
+  return (el as HTMLInputElement | HTMLTextAreaElement).value;
+}
+
 type FieldValueType = {
   text: string;
   textarea: string;
@@ -55,13 +68,13 @@ export interface DataGridConfig<
   };
   fields: F;
   idField: F[number]["key"];
-  onRead(): Promise<InferRecord<F>[] | false>;
-  onCreate(record: InferEditableRecord<F>): Promise<InferRecord<F> | false>;
+  onRead(): Promise<InferRecord<F>[]>;
+  onCreate(record: InferEditableRecord<F>): Promise<InferRecord<F>>;
   onUpdate(
     id: number,
     record: InferEditableRecord<F>,
-  ): Promise<InferRecord<F> | false>;
-  onDelete(id: number): Promise<boolean>;
+  ): Promise<InferRecord<F>>;
+  onDelete(id: number): Promise<void>;
 }
 
 export abstract class DataGridComponent extends HTMLElement {
@@ -77,9 +90,16 @@ export abstract class DataGridComponent extends HTMLElement {
   private editingId: number | null = null;
 
   connectedCallback() {
+    this.bindElements();
+    this.initTable();
+    this.bindEvents();
+    this.loadData();
+  }
+
+  private bindElements() {
     this.addButton = this.querySelector("button.data-grid-add")!;
     this.dialog = this.querySelector("dialog")!;
-    this.dialogHeading = this.dialog.querySelector("dialog h3")!;
+    this.dialogHeading = this.dialog.querySelector("h3")!;
     this.form = this.querySelector("dialog form")!;
     this.formCancelButton = this.form.querySelector(
       'menu button[type="button"]',
@@ -87,7 +107,9 @@ export abstract class DataGridComponent extends HTMLElement {
     this.formSaveButton = this.form.querySelector(
       'menu button[type="submit"]',
     )!;
+  }
 
+  private initTable() {
     const columns = toTabulatorColumns(this.config.fields);
     columns.push({
       title: "",
@@ -109,7 +131,9 @@ export abstract class DataGridComponent extends HTMLElement {
       this.querySelector(".data-grid-body") as HTMLElement,
       { layout: "fitColumns", columns },
     );
+  }
 
+  private bindEvents() {
     this.addButton.addEventListener("click", () => this.openAdd());
 
     this.formCancelButton.addEventListener("click", () =>
@@ -120,14 +144,15 @@ export abstract class DataGridComponent extends HTMLElement {
       e.preventDefault();
       this.saveForm();
     });
-
-    this.loadData();
   }
 
   private async loadData() {
-    const records = await this.config.onRead();
-    if (records) {
+    try {
+      const records = await this.config.onRead();
       this.table.setData(records);
+    } catch (e) {
+      console.error("Failed to load data:", e);
+      alert(e instanceof Error ? e.message : "Failed to load data.");
     }
   }
 
@@ -158,31 +183,31 @@ export abstract class DataGridComponent extends HTMLElement {
     const payload: Record<string, string | boolean | number> = {};
     for (const field of this.config.fields) {
       if (field.editable === false) continue;
-      const el = this.form.elements.namedItem(field.key)!;
-      payload[field.key] =
-        field.type === "checkbox"
-          ? (el as HTMLInputElement).checked
-          : (el as HTMLInputElement).value;
+      const el = this.form.elements.namedItem(field.key) as Element;
+      payload[field.key] = parseFieldValue(field, el);
     }
-    const result =
-      this.editingId != null
-        ? await this.config.onUpdate(this.editingId, payload)
-        : await this.config.onCreate(payload);
-    if (!result) {
-      alert("Failed to save data.");
-      return;
+    try {
+      if (this.editingId != null) {
+        await this.config.onUpdate(this.editingId, payload);
+      } else {
+        await this.config.onCreate(payload);
+      }
+      this.dialog.close();
+      await this.loadData();
+    } catch (e) {
+      console.error("Failed to save data:", e);
+      alert(e instanceof Error ? e.message : "Failed to save data.");
     }
-    this.dialog.close();
-    await this.loadData();
   }
 
   private async doDelete(id: number) {
     if (!confirm("Delete this record?")) return;
-    const result = await this.config.onDelete(id);
-    if (!result) {
-      alert("Failed to delete");
-      return;
+    try {
+      await this.config.onDelete(id);
+      await this.loadData();
+    } catch (e) {
+      console.error("Failed to delete:", e);
+      alert(e instanceof Error ? e.message : "Failed to delete.");
     }
-    await this.loadData();
   }
 }
