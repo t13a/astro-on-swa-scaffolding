@@ -42,15 +42,15 @@ function toTabulatorColumns<K extends string>(
 
 function parseFieldValue(
   field: DataGridField<string>,
-  el: Element,
+  e: Element,
 ): string | boolean | number {
   if (field.type === "checkbox") {
-    return (el as HTMLInputElement).checked;
+    return (e as HTMLInputElement).checked;
   }
   if (field.type === "number") {
-    return Number((el as HTMLInputElement).value) || 0;
+    return Number((e as HTMLInputElement).value) || 0;
   }
-  return (el as HTMLInputElement | HTMLTextAreaElement).value;
+  return (e as HTMLInputElement | HTMLTextAreaElement).value;
 }
 
 type FieldValueType = {
@@ -99,10 +99,7 @@ export interface DataGridImplementor<
 > {
   onRead(query: DataGridQuery): Promise<DataGridPage<InferRecord<F>>>;
   onCreate(record: InferEditableRecord<F>): Promise<InferRecord<F>>;
-  onUpdate(
-    id: number,
-    record: InferEditableRecord<F>,
-  ): Promise<InferRecord<F>>;
+  onUpdate(id: number, record: InferEditableRecord<F>): Promise<InferRecord<F>>;
   onDelete(id: number): Promise<void>;
 }
 
@@ -112,6 +109,7 @@ export abstract class DataGridComponent extends HTMLElement {
 
   private table!: Tabulator;
   private addButton!: HTMLButtonElement;
+  private body!: HTMLDivElement;
   private dialog!: HTMLDialogElement;
   private dialogHeading!: HTMLHeadingElement;
   private form!: HTMLFormElement;
@@ -131,6 +129,7 @@ export abstract class DataGridComponent extends HTMLElement {
 
   private bindElements() {
     this.addButton = this.querySelector("button.data-grid-add")!;
+    this.body = this.querySelector(".data-grid-body")!;
     this.dialog = this.querySelector("dialog")!;
     this.dialogHeading = this.dialog.querySelector("h3")!;
     this.form = this.querySelector("dialog form")!;
@@ -154,42 +153,37 @@ export abstract class DataGridComponent extends HTMLElement {
       cellClick: (_e, cell) => {
         const target = (_e as unknown as MouseEvent).target as HTMLElement;
         const row = cell.getRow().getData() as Record<string, unknown>;
-        if (target.dataset.action === "edit") this.openEdit(row);
+        if (target.dataset.action === "edit") this.handleEdit(row);
         else if (target.dataset.action === "delete")
-          this.doDelete(row[this.config.idField] as number);
+          this.handleDelete(row[this.config.idField] as number);
       },
     });
 
-    this.table = new Tabulator(
-      this.querySelector(".data-grid-body") as HTMLElement,
-      {
-        layout: "fitColumns",
-        columns,
-        pagination: true,
-        paginationMode: "remote",
-        paginationSize: 20,
-        filterMode: "remote",
-        sortMode: "remote",
-        ajaxURL: "dummy",
-        ajaxRequestFunc: (_url, _config, params) => this.fetchData(params),
-      },
-    );
+    this.table = new Tabulator(this.body, {
+      layout: "fitColumns",
+      columns,
+      pagination: true,
+      paginationMode: "remote",
+      paginationSize: 20,
+      filterMode: "remote",
+      sortMode: "remote",
+      ajaxURL: "dummy",
+      ajaxRequestFunc: (_url, _config, params) => this.load(params),
+    });
   }
 
   private bindEvents() {
-    this.addButton.addEventListener("click", () => this.openAdd());
+    this.addButton.addEventListener("click", () => this.handleAdd());
 
-    this.formCancelButton.addEventListener("click", () =>
-      this.dialog.close(),
-    );
+    this.formCancelButton.addEventListener("click", () => this.dialog.close());
 
     this.form.addEventListener("submit", (e) => {
       e.preventDefault();
-      this.saveForm();
+      this.save();
     });
   }
 
-  private async fetchData(params: Record<string, unknown>) {
+  private async load(params: Record<string, unknown>) {
     const query: DataGridQuery = {
       page: (params.page as number) || 1,
       size: (params.size as number) || 20,
@@ -201,18 +195,39 @@ export abstract class DataGridComponent extends HTMLElement {
     return this.implementor.onRead(query);
   }
 
-  private reloadCurrentPage() {
+  private reload() {
     this.table.setPage(this.table.getPage() || 1);
   }
 
-  private openAdd() {
+  private async save() {
+    const payload: Record<string, string | boolean | number> = {};
+    for (const field of this.config.fields) {
+      if (field.editable === false) continue;
+      const el = this.form.elements.namedItem(field.key) as Element;
+      payload[field.key] = parseFieldValue(field, el);
+    }
+    try {
+      if (this.editingId != null) {
+        await this.implementor.onUpdate(this.editingId, payload);
+      } else {
+        await this.implementor.onCreate(payload);
+      }
+      this.dialog.close();
+      this.reload();
+    } catch (e) {
+      console.error("Failed to save data:", e);
+      alert(e instanceof Error ? e.message : "Failed to save data.");
+    }
+  }
+
+  private handleAdd() {
     this.form.reset();
     this.editingId = null;
     this.dialogHeading.textContent = `New ${this.config.labels.singular}`;
     this.dialog.showModal();
   }
 
-  private openEdit(row: Record<string, unknown>) {
+  private handleEdit(row: Record<string, unknown>) {
     this.editingId = row[this.config.idField] as number;
     for (const field of this.config.fields) {
       if (field.editable === false) continue;
@@ -228,32 +243,11 @@ export abstract class DataGridComponent extends HTMLElement {
     this.dialog.showModal();
   }
 
-  private async saveForm() {
-    const payload: Record<string, string | boolean | number> = {};
-    for (const field of this.config.fields) {
-      if (field.editable === false) continue;
-      const el = this.form.elements.namedItem(field.key) as Element;
-      payload[field.key] = parseFieldValue(field, el);
-    }
-    try {
-      if (this.editingId != null) {
-        await this.implementor.onUpdate(this.editingId, payload);
-      } else {
-        await this.implementor.onCreate(payload);
-      }
-      this.dialog.close();
-      this.reloadCurrentPage();
-    } catch (e) {
-      console.error("Failed to save data:", e);
-      alert(e instanceof Error ? e.message : "Failed to save data.");
-    }
-  }
-
-  private async doDelete(id: number) {
+  private async handleDelete(id: number) {
     if (!confirm("Delete this record?")) return;
     try {
       await this.implementor.onDelete(id);
-      this.reloadCurrentPage();
+      this.reload();
     } catch (e) {
       console.error("Failed to delete:", e);
       alert(e instanceof Error ? e.message : "Failed to delete.");
