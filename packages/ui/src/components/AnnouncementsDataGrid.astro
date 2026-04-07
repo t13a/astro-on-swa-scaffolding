@@ -15,9 +15,17 @@ const { ...rest } = Astro.props;
 <script>
   import { DataGridComponent } from "./DataGrid.js";
   import { config } from "./AnnouncementsDataGrid.js";
+  import { apiClient } from "../lib/api-client.js";
+  import { createImplementor } from "../lib/data-grid-helper.js";
 
   class AnnouncementsDataGridComponent extends DataGridComponent {
     readonly config = config;
+    readonly implementor = createImplementor<typeof config.fields>(
+      apiClient.management.announcements.$get,
+      apiClient.management.announcements.$post,
+      apiClient.management.announcements[":id"].$put,
+      apiClient.management.announcements[":id"].$delete,
+    );
   }
 
   customElements.define(

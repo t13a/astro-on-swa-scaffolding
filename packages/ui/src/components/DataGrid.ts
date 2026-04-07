@@ -92,6 +92,11 @@ export interface DataGridConfig<
   };
   fields: F;
   idField: F[number]["key"];
+}
+
+export interface DataGridImplementor<
+  F extends DataGridField<string>[] = DataGridField<string>[],
+> {
   onRead(query: DataGridQuery): Promise<DataGridPage<InferRecord<F>>>;
   onCreate(record: InferEditableRecord<F>): Promise<InferRecord<F>>;
   onUpdate(
@@ -103,6 +108,7 @@ export interface DataGridConfig<
 
 export abstract class DataGridComponent extends HTMLElement {
   abstract readonly config: DataGridConfig;
+  abstract readonly implementor: DataGridImplementor;
 
   private table!: Tabulator;
   private addButton!: HTMLButtonElement;
@@ -192,7 +198,7 @@ export abstract class DataGridComponent extends HTMLElement {
         (f) => f.value !== "" && f.value != null,
       ),
     };
-    return this.config.onRead(query);
+    return this.implementor.onRead(query);
   }
 
   private reloadCurrentPage() {
@@ -231,9 +237,9 @@ export abstract class DataGridComponent extends HTMLElement {
     }
     try {
       if (this.editingId != null) {
-        await this.config.onUpdate(this.editingId, payload);
+        await this.implementor.onUpdate(this.editingId, payload);
       } else {
-        await this.config.onCreate(payload);
+        await this.implementor.onCreate(payload);
       }
       this.dialog.close();
       this.reloadCurrentPage();
@@ -246,7 +252,7 @@ export abstract class DataGridComponent extends HTMLElement {
   private async doDelete(id: number) {
     if (!confirm("Delete this record?")) return;
     try {
-      await this.config.onDelete(id);
+      await this.implementor.onDelete(id);
       this.reloadCurrentPage();
     } catch (e) {
       console.error("Failed to delete:", e);
