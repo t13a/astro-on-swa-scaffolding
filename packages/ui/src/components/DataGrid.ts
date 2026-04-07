@@ -19,10 +19,22 @@ function toTabulatorColumns<K extends string>(
   return fields.map((f) => {
     const col: ColumnDefinition = { title: f.label, field: f.key };
     if (f.width) col.width = f.width;
-    if (f.type === "checkbox") col.formatter = "tickCross";
-    if (f.type === "datetime") {
+    if (f.type === "checkbox") {
+      col.formatter = "tickCross";
+      col.headerFilter = "tickCross";
+      col.headerFilterParams = { tristate: true };
+      col.headerFilterFunc = "=";
+    } else if (f.type === "number") {
+      col.headerFilter = "number";
+      col.headerFilterFunc = "=";
+    } else if (f.type === "datetime") {
       col.formatter = (cell) =>
         new Date(cell.getValue() as string).toLocaleString();
+      col.headerFilter = "input";
+      col.headerFilterFunc = "like";
+    } else {
+      col.headerFilter = "input";
+      col.headerFilterFunc = "like";
     }
     return col;
   });
@@ -59,6 +71,18 @@ export type InferEditableRecord<F extends DataGridField<string>[]> = {
     : P["key"]]: FieldValueType[P["type"]];
 };
 
+export interface DataGridQuery {
+  page: number;
+  size: number;
+  sort: { field: string; dir: "asc" | "desc" }[];
+  filter: { field: string; type: string; value: string | number | boolean }[];
+}
+
+export interface DataGridPage<T> {
+  data: T[];
+  last_page: number;
+}
+
 export interface DataGridConfig<
   F extends DataGridField<string>[] = DataGridField<string>[],
 > {
@@ -68,7 +92,7 @@ export interface DataGridConfig<
   };
   fields: F;
   idField: F[number]["key"];
-  onRead(): Promise<InferRecord<F>[]>;
+  onRead(query: DataGridQuery): Promise<DataGridPage<InferRecord<F>>>;
   onCreate(record: InferEditableRecord<F>): Promise<InferRecord<F>>;
   onUpdate(
     id: number,
@@ -93,7 +117,6 @@ export abstract class DataGridComponent extends HTMLElement {
     this.bindElements();
     this.initTable();
     this.bindEvents();
-    this.loadData();
   }
 
   disconnectedCallback() {
@@ -133,7 +156,17 @@ export abstract class DataGridComponent extends HTMLElement {
 
     this.table = new Tabulator(
       this.querySelector(".data-grid-body") as HTMLElement,
-      { layout: "fitColumns", columns },
+      {
+        layout: "fitColumns",
+        columns,
+        pagination: true,
+        paginationMode: "remote",
+        paginationSize: 20,
+        filterMode: "remote",
+        sortMode: "remote",
+        ajaxURL: "dummy",
+        ajaxRequestFunc: (_url, _config, params) => this.fetchData(params),
+      },
     );
   }
 
@@ -150,14 +183,20 @@ export abstract class DataGridComponent extends HTMLElement {
     });
   }
 
-  private async loadData() {
-    try {
-      const records = await this.config.onRead();
-      this.table.setData(records);
-    } catch (e) {
-      console.error("Failed to load data:", e);
-      alert(e instanceof Error ? e.message : "Failed to load data.");
-    }
+  private async fetchData(params: Record<string, unknown>) {
+    const query: DataGridQuery = {
+      page: (params.page as number) || 1,
+      size: (params.size as number) || 20,
+      sort: (params.sort as DataGridQuery["sort"]) ?? [],
+      filter: ((params.filter as DataGridQuery["filter"]) ?? []).filter(
+        (f) => f.value !== "" && f.value != null,
+      ),
+    };
+    return this.config.onRead(query);
+  }
+
+  private reloadCurrentPage() {
+    this.table.setPage(this.table.getPage() || 1);
   }
 
   private openAdd() {
@@ -197,7 +236,7 @@ export abstract class DataGridComponent extends HTMLElement {
         await this.config.onCreate(payload);
       }
       this.dialog.close();
-      await this.loadData();
+      this.reloadCurrentPage();
     } catch (e) {
       console.error("Failed to save data:", e);
       alert(e instanceof Error ? e.message : "Failed to save data.");
@@ -208,7 +247,7 @@ export abstract class DataGridComponent extends HTMLElement {
     if (!confirm("Delete this record?")) return;
     try {
       await this.config.onDelete(id);
-      await this.loadData();
+      this.reloadCurrentPage();
     } catch (e) {
       console.error("Failed to delete:", e);
       alert(e instanceof Error ? e.message : "Failed to delete.");

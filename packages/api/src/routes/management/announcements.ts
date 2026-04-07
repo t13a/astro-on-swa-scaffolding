@@ -1,11 +1,15 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { eq, desc } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { announcements } from "../../db/schema.js";
 import type { AuthEnv } from "../../auth/middleware.js";
 import type { DbEnv } from "../../db/middleware.js";
 import { AzureEnv } from "../../lib/hono-azurefunc-adapter.js";
+import {
+  paginatedQuerySchema,
+  paginatedQuery,
+} from "../../lib/query-builder.js";
 
 const createSchema = z.object({
   title: z.string().min(1).max(200),
@@ -22,13 +26,10 @@ const updateSchema = z.object({
 type Env = AzureEnv & AuthEnv & DbEnv;
 
 const app = new Hono<Env>()
-  .get("/", async (c) => {
+  .get("/", zValidator("query", paginatedQuerySchema), async (c) => {
     const db = c.var.db;
-    const rows = await db
-      .select()
-      .from(announcements)
-      .orderBy(desc(announcements.createdAt));
-    return c.json(rows, 200);
+    const result = await paginatedQuery(db, announcements, c.req.valid("query"));
+    return c.json(result, 200);
   })
   .post("/", zValidator("json", createSchema), async (c) => {
     const db = c.var.db;

@@ -4,6 +4,8 @@ import type {
   InferRecord,
   InferEditableRecord,
   DataGridConfig,
+  DataGridQuery,
+  DataGridPage,
 } from "./DataGrid.js";
 
 const fields = [
@@ -36,8 +38,17 @@ export const config = {
   onDelete,
 } satisfies DataGridConfig<typeof fields>;
 
-async function onRead() {
-  const res = await apiClient.management.announcements.$get();
+async function onRead(
+  query: DataGridQuery,
+): Promise<DataGridPage<Announcement>> {
+  const res = await apiClient.management.announcements.$get({
+    query: {
+      page: String(query.page),
+      size: String(query.size),
+      sort: JSON.stringify(query.sort),
+      filter: JSON.stringify(query.filter),
+    },
+  });
   if (!res.ok) {
     throw new Error(await res.text());
   }
